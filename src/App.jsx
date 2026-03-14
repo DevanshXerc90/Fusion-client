@@ -16,6 +16,7 @@ import Examination from "./Modules/Examination/examination";
 import Database from "./Modules/Database/database";
 import ProgrammeCurriculumRoutes from "./Modules/Program_curriculum/programmCurriculum";
 import NotFoundPage from "./components/NotFoundPage";
+import gymkhanaRoutes from "./routes/gymkhanaRoutes";
 
 const theme = createTheme({
   breakpoints: {
@@ -30,11 +31,16 @@ const theme = createTheme({
 
 export default function App() {
   const location = useLocation();
+  const isGymkhanaPath = location.pathname.startsWith("/gymkhana");
+  const shouldBypassAuthForGymkhana = import.meta.env.DEV && isGymkhanaPath;
+
   return (
     <MantineProvider theme={theme}>
       <Notifications position="top-center" autoClose={2000} limit={1} />
-      {location.pathname !== "/accounts/login" && <ValidateAuth />}
-      {location.pathname !== "/accounts/login" && <InactivityHandler />}
+      {location.pathname !== "/accounts/login" &&
+        !shouldBypassAuthForGymkhana && <ValidateAuth />}
+      {location.pathname !== "/accounts/login" &&
+        !shouldBypassAuthForGymkhana && <InactivityHandler />}
 
       <Routes>
         <Route path="/" element={<Navigate to="/accounts/login" replace />} />
@@ -82,6 +88,13 @@ export default function App() {
         <Route path="/reset-password" element={<ForgotPassword />} />
         <Route path="/examination/*" element={<Examination />} />
         <Route path="/database/*" element={<Database />} />
+        {gymkhanaRoutes.map((route) => (
+          <Route
+            key={route.path}
+            path={route.path}
+            element={<Layout>{route.element}</Layout>}
+          />
+        ))}
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </MantineProvider>
