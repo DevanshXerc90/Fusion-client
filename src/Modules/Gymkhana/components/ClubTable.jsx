@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
-import { extractErrorMessage, extractRows, getClubs } from "../api";
-
-const CLUBS_CHANGED_EVENT = "gymkhana:clubs:changed";
+import { Alert, Button, Group, Loader, Paper, Table, Text, Title } from "@mantine/core";
+import { entityRows, extractErrorMessage, getClubs, gymkhanaEntityEvents } from "../api";
 
 export default function ClubTable() {
   const [clubs, setClubs] = useState([]);
@@ -17,7 +16,7 @@ export default function ClubTable() {
       try {
         const data = await getClubs();
         if (mounted) {
-          setClubs(extractRows(data));
+          setClubs(entityRows(data, "clubs"));
         }
       } catch (err) {
         if (mounted) {
@@ -35,47 +34,63 @@ export default function ClubTable() {
     }
 
     fetchClubs();
-    window.addEventListener(CLUBS_CHANGED_EVENT, handleClubsChanged);
+    window.addEventListener(gymkhanaEntityEvents.clubs, handleClubsChanged);
 
     return () => {
       mounted = false;
-      window.removeEventListener(CLUBS_CHANGED_EVENT, handleClubsChanged);
+      window.removeEventListener(gymkhanaEntityEvents.clubs, handleClubsChanged);
     };
   }, []);
 
   if (loading) {
-    return <p>Loading clubs...</p>;
+    return (
+      <Group justify="center" py="md">
+        <Loader size="sm" />
+        <Text size="sm">Loading clubs...</Text>
+      </Group>
+    );
   }
 
   if (error) {
-    return <p style={{ color: "#b00020" }}>{error}</p>;
+    return (
+      <Alert color="red" variant="light" mb="md">
+        {error}
+      </Alert>
+    );
   }
 
   return (
-    <table border="1" cellPadding="8" cellSpacing="0" width="100%">
-      <thead>
-        <tr>
-          <th>Club Name</th>
-          <th>Description</th>
-          <th>Coordinator</th>
-        </tr>
-      </thead>
-      <tbody>
-        {clubs.length === 0 && (
-          <tr>
-            <td colSpan="3" align="center">
-              No clubs found.
-            </td>
-          </tr>
-        )}
-        {clubs.map((club) => (
-          <tr key={club.id || club.name}>
-            <td>{club.name || club.club_name || "-"}</td>
-            <td>{club.description || "-"}</td>
-            <td>{club.coordinator_name || club.coordinator_id || "-"}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+    <Paper shadow="xs" p="md" radius="md" withBorder>
+      <Group justify="space-between" mb="md">
+        <Title order={4}>Clubs</Title>
+        <Button variant="light" onClick={() => window.dispatchEvent(new Event(gymkhanaEntityEvents.clubs))}>
+          Refresh
+        </Button>
+      </Group>
+      {clubs.length === 0 ? (
+        <Text c="dimmed" ta="center" py="md">
+          No clubs found.
+        </Text>
+      ) : (
+        <Table striped highlightOnHover withTableBorder>
+          <Table.Thead>
+            <Table.Tr>
+              <Table.Th>Club Name</Table.Th>
+              <Table.Th>Description</Table.Th>
+              <Table.Th>Coordinator</Table.Th>
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>
+            {clubs.map((club) => (
+              <Table.Tr key={club.id || club.name}>
+                <Table.Td>{club.name || club.club_name || "-"}</Table.Td>
+                <Table.Td>{club.description || "-"}</Table.Td>
+                <Table.Td>{club.coordinator_name || club.coordinator_id || "-"}</Table.Td>
+              </Table.Tr>
+            ))}
+          </Table.Tbody>
+        </Table>
+      )}
+    </Paper>
   );
 }

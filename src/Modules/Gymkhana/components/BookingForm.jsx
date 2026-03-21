@@ -1,8 +1,25 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import PropTypes from "prop-types";
-import { createBooking, extractErrorMessage } from "../api";
-
-const BOOKINGS_CHANGED_EVENT = "gymkhana:bookings:changed";
+import {
+  Alert,
+  Button,
+  Group,
+  Paper,
+  Select,
+  SimpleGrid,
+  Stack,
+  Text,
+  TextInput,
+  Textarea,
+  Title,
+} from "@mantine/core";
+import {
+  createBooking,
+  entityRows,
+  extractErrorMessage,
+  getBookings,
+  getFacilities,
+} from "../api";
 
 const initialState = {
   facility_id: "",
@@ -15,9 +32,39 @@ const initialState = {
 
 export default function BookingForm({ onCreated }) {
   const [form, setForm] = useState(initialState);
+  const [facilities, setFacilities] = useState([]);
+  const [bookings, setBookings] = useState([]);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadData() {
+      try {
+        const [facilityData, bookingData] = await Promise.all([
+          getFacilities(),
+          getBookings(),
+        ]);
+        if (mounted) {
+          setFacilities(entityRows(facilityData, "facilities"));
+          setBookings(entityRows(bookingData, "bookings"));
+        }
+      } catch {
+        if (mounted) {
+          setFacilities([]);
+          setBookings([]);
+        }
+      }
+    }
+
+    loadData();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -42,6 +89,20 @@ export default function BookingForm({ onCreated }) {
       return "Purpose cannot be empty.";
     }
 
+    const hasConflict = bookings.some((booking) => {
+      const sameFacility = Number(booking.facility_id) === Number(form.facility_id);
+      const sameDate = booking.booking_date === form.booking_date;
+      if (!sameFacility || !sameDate) {
+        return false;
+      }
+
+      return form.start_time < booking.end_time && form.end_time > booking.start_time;
+    });
+
+    if (hasConflict) {
+      return "Selected facility is not available in the selected slot.";
+    }
+
     return "";
   };
 
@@ -63,9 +124,10 @@ export default function BookingForm({ onCreated }) {
         facility_id: Number(form.facility_id),
         user_id: form.user_id ? Number(form.user_id) : null,
       });
+      const refreshedBookings = await getBookings();
+      setBookings(entityRows(refreshedBookings, "bookings"));
       setForm(initialState);
       setSuccess("Booking created successfully.");
-      window.dispatchEvent(new Event(BOOKINGS_CHANGED_EVENT));
 
       if (onCreated) {
         onCreated();
@@ -78,64 +140,88 @@ export default function BookingForm({ onCreated }) {
   };
 
   return (
-    <form onSubmit={handleSubmit} style={{ marginBottom: "1rem" }}>
-      <h3>Create Booking</h3>
-      <div>
-        <input
-          name="facility_id"
-          type="number"
-          value={form.facility_id}
-          onChange={handleChange}
-          placeholder="Facility ID"
-        />
-      </div>
-      <div>
-        <input
-          name="user_id"
-          type="number"
-          value={form.user_id}
-          onChange={handleChange}
-          placeholder="User ID (optional)"
-        />
-      </div>
-      <div>
-        <input
-          name="booking_date"
-          type="date"
-          value={form.booking_date}
-          onChange={handleChange}
-        />
-      </div>
-      <div>
-        <input
-          name="start_time"
-          type="time"
-          value={form.start_time}
-          onChange={handleChange}
-        />
-      </div>
-      <div>
-        <input
-          name="end_time"
-          type="time"
-          value={form.end_time}
-          onChange={handleChange}
-        />
-      </div>
-      <div>
-        <textarea
-          name="purpose"
-          value={form.purpose}
-          onChange={handleChange}
-          placeholder="Purpose"
-        />
-      </div>
-      <button type="submit" disabled={submitting}>
-        {submitting ? "Creating..." : "Create Booking"}
-      </button>
-      {error && <p style={{ color: "#b00020" }}>{error}</p>}
-      {success && <p style={{ color: "#0b6b2d" }}>{success}</p>}
-    </form>
+    <Paper shadow="xs" p="md" radius="md" withBorder mb="md">
+      <form onSubmit={handleSubmit}>
+        <Stack>
+          <Title order={4}>Create Booking</Title>
+          {error && (
+            <Alert color="red" variant="light">
+              {error}
+            </Alert>
+          )}
+          {success && (
+            <Alert color="green" variant="light">
+              {success}
+            </Alert>
+          )}
+          <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
+            <Select
+              label="Facility"
+              data={facilities.map((facility) => ({
+                value: String(facility.id),
+                label: facility.name || `Facility ${facility.id}`,
+              }))}
+              value={form.facility_id}
+              onChange={(value) =>
+                setForm((prev) => ({ ...prev, facility_id: value || "" }))
+              }
+              searchable
+              required
+              placeholder="Select facility"
+              nothingFoundMessage="No facilities"
+            />
+            <TextInput
+              label="User ID"
+              name="user_id"
+              type="number"
+              value={form.user_id}
+              onChange={handleChange}
+              placeholder="Optional"
+            />
+            <TextInput
+              label="Booking date"
+              type="date"
+              name="booking_date"
+              value={form.booking_date}
+              onChange={handleChange}
+              required
+            />
+            <TextInput
+              label="Start time"
+              type="time"
+              name="start_time"
+              value={form.start_time}
+              onChange={handleChange}
+              required
+            />
+            <TextInput
+              label="End time"
+              type="time"
+              name="end_time"
+              value={form.end_time}
+              onChange={handleChange}
+              required
+            />
+          </SimpleGrid>
+          <Textarea
+            label="Purpose"
+            name="purpose"
+            value={form.purpose}
+            onChange={handleChange}
+            minRows={3}
+            required
+          />
+          <Group justify="space-between">
+            <Text c="dimmed" size="sm">
+              Availability is validated before booking submission.
+            </Text>
+            <Button type="submit" loading={submitting}>
+              Create Booking
+            </Button>
+          </Group>
+        </Stack>
+      </form>
+    </Paper>
   );
 }
 

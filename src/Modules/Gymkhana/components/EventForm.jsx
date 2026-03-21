@@ -1,13 +1,25 @@
 import { useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import {
+  Alert,
+  Button,
+  Group,
+  Paper,
+  Select,
+  SimpleGrid,
+  Stack,
+  Text,
+  TextInput,
+  Textarea,
+  Title,
+} from "@mantine/core";
+import {
   createEvent,
   extractErrorMessage,
-  extractRows,
   getEvents,
+  getClubs,
+  entityRows,
 } from "../api";
-
-const EVENTS_CHANGED_EVENT = "gymkhana:events:changed";
 
 const initialState = {
   title: "",
@@ -22,6 +34,7 @@ const initialState = {
 export default function EventForm({ onCreated }) {
   const [form, setForm] = useState(initialState);
   const [existingEvents, setExistingEvents] = useState([]);
+  const [clubOptions, setClubOptions] = useState([]);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -29,20 +42,28 @@ export default function EventForm({ onCreated }) {
   useEffect(() => {
     let mounted = true;
 
-    async function fetchExistingEvents() {
+    async function loadReferenceData() {
       try {
-        const data = await getEvents();
+        const [eventData, clubData] = await Promise.all([getEvents(), getClubs()]);
         if (mounted) {
-          setExistingEvents(extractRows(data));
+          setExistingEvents(entityRows(eventData, "events"));
+          const clubs = entityRows(clubData, "clubs");
+          setClubOptions(
+            clubs.map((club) => ({
+              value: String(club.id),
+              label: club.name || club.club_name || `Club ${club.id}`,
+            })),
+          );
         }
       } catch {
         if (mounted) {
           setExistingEvents([]);
+          setClubOptions([]);
         }
       }
     }
 
-    fetchExistingEvents();
+    loadReferenceData();
 
     return () => {
       mounted = false;
@@ -128,8 +149,7 @@ export default function EventForm({ onCreated }) {
       setForm(initialState);
       setSuccess("Event created successfully.");
       const refreshedEvents = await getEvents();
-      setExistingEvents(extractRows(refreshedEvents));
-      window.dispatchEvent(new Event(EVENTS_CHANGED_EVENT));
+      setExistingEvents(entityRows(refreshedEvents, "events"));
 
       if (onCreated) {
         onCreated();
@@ -142,71 +162,91 @@ export default function EventForm({ onCreated }) {
   };
 
   return (
-    <form onSubmit={handleSubmit} style={{ marginBottom: "1rem" }}>
-      <h3>Create Event</h3>
-      <div>
-        <input
-          name="title"
-          value={form.title}
-          onChange={handleChange}
-          placeholder="Event title"
-        />
-      </div>
-      <div>
-        <input
-          name="club_id"
-          type="number"
-          value={form.club_id}
-          onChange={handleChange}
-          placeholder="Club ID"
-        />
-      </div>
-      <div>
-        <input
-          name="event_date"
-          type="date"
-          value={form.event_date}
-          onChange={handleChange}
-        />
-      </div>
-      <div>
-        <input
-          name="start_time"
-          type="time"
-          value={form.start_time}
-          onChange={handleChange}
-        />
-      </div>
-      <div>
-        <input
-          name="end_time"
-          type="time"
-          value={form.end_time}
-          onChange={handleChange}
-        />
-      </div>
-      <div>
-        <input
-          name="venue"
-          value={form.venue}
-          onChange={handleChange}
-          placeholder="Venue"
-        />
-      </div>
-      <div>
-        <textarea
-          name="description"
-          value={form.description}
-          onChange={handleChange}
-          placeholder="Description"
-        />
-      </div>
-      <button type="submit" disabled={submitting}>
-        {submitting ? "Creating..." : "Create Event"}
-      </button>
-      {error && <p style={{ color: "#b00020" }}>{error}</p>}
-      {success && <p style={{ color: "#0b6b2d" }}>{success}</p>}
-    </form>
+    <Paper shadow="xs" p="md" radius="md" withBorder mb="md">
+      <form onSubmit={handleSubmit}>
+        <Stack>
+          <Title order={4}>Create Event</Title>
+          {error && (
+            <Alert color="red" variant="light">
+              {error}
+            </Alert>
+          )}
+          {success && (
+            <Alert color="green" variant="light">
+              {success}
+            </Alert>
+          )}
+          <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
+            <TextInput
+              label="Event title"
+              name="title"
+              value={form.title}
+              onChange={handleChange}
+              required
+            />
+            <Select
+              label="Club"
+              name="club_id"
+              data={clubOptions}
+              value={form.club_id}
+              onChange={(value) =>
+                setForm((prev) => ({ ...prev, club_id: value || "" }))
+              }
+              searchable
+              required
+              placeholder="Select club"
+              nothingFoundMessage="No clubs"
+            />
+            <TextInput
+              label="Event date"
+              type="date"
+              name="event_date"
+              value={form.event_date}
+              onChange={handleChange}
+              required
+            />
+            <TextInput
+              label="Venue"
+              name="venue"
+              value={form.venue}
+              onChange={handleChange}
+              required
+            />
+            <TextInput
+              label="Start time"
+              type="time"
+              name="start_time"
+              value={form.start_time}
+              onChange={handleChange}
+              required
+            />
+            <TextInput
+              label="End time"
+              type="time"
+              name="end_time"
+              value={form.end_time}
+              onChange={handleChange}
+              required
+            />
+          </SimpleGrid>
+          <Textarea
+            label="Description"
+            name="description"
+            value={form.description}
+            onChange={handleChange}
+            minRows={3}
+          />
+          <Group justify="space-between">
+            <Text c="dimmed" size="sm">
+              BR-GM-009 conflict checks are enforced before submission.
+            </Text>
+            <Button type="submit" loading={submitting}>
+              Create Event
+            </Button>
+          </Group>
+        </Stack>
+      </form>
+    </Paper>
   );
 }
 

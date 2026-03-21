@@ -1,8 +1,17 @@
 import { useState } from "react";
 import PropTypes from "prop-types";
+import {
+  Alert,
+  Button,
+  Group,
+  Paper,
+  SimpleGrid,
+  Stack,
+  Text,
+  TextInput,
+  Title,
+} from "@mantine/core";
 import { createFacility, extractErrorMessage } from "../api";
-
-const FACILITIES_CHANGED_EVENT = "gymkhana:facilities:changed";
 
 const initialState = {
   name: "",
@@ -56,7 +65,6 @@ export default function FacilityForm({ onCreated }) {
       });
       setForm(initialState);
       setSuccess("Facility created successfully.");
-      window.dispatchEvent(new Event(FACILITIES_CHANGED_EVENT));
 
       if (onCreated) {
         onCreated();
@@ -69,47 +77,61 @@ export default function FacilityForm({ onCreated }) {
   };
 
   return (
-    <form onSubmit={handleSubmit} style={{ marginBottom: "1rem" }}>
-      <h3>Add Facility</h3>
-      <div>
-        <input
-          name="name"
-          value={form.name}
-          onChange={handleChange}
-          placeholder="Facility name"
-        />
-      </div>
-      <div>
-        <input
-          name="sport_type"
-          value={form.sport_type}
-          onChange={handleChange}
-          placeholder="Sport type"
-        />
-      </div>
-      <div>
-        <input
-          name="location"
-          value={form.location}
-          onChange={handleChange}
-          placeholder="Location"
-        />
-      </div>
-      <div>
-        <input
-          name="capacity"
-          type="number"
-          value={form.capacity}
-          onChange={handleChange}
-          placeholder="Capacity"
-        />
-      </div>
-      <button type="submit" disabled={submitting}>
-        {submitting ? "Creating..." : "Create Facility"}
-      </button>
-      {error && <p style={{ color: "#b00020" }}>{error}</p>}
-      {success && <p style={{ color: "#0b6b2d" }}>{success}</p>}
-    </form>
+    <Paper shadow="xs" p="md" radius="md" withBorder mb="md">
+      <form onSubmit={handleSubmit}>
+        <Stack>
+          <Title order={4}>Add Facility</Title>
+          {error && (
+            <Alert color="red" variant="light">
+              {error}
+            </Alert>
+          )}
+          {success && (
+            <Alert color="green" variant="light">
+              {success}
+            </Alert>
+          )}
+          <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
+            <TextInput
+              label="Facility name"
+              name="name"
+              value={form.name}
+              onChange={handleChange}
+              required
+            />
+            <TextInput
+              label="Sport type"
+              name="sport_type"
+              value={form.sport_type}
+              onChange={handleChange}
+              required
+            />
+            <TextInput
+              label="Location"
+              name="location"
+              value={form.location}
+              onChange={handleChange}
+              required
+            />
+            <TextInput
+              label="Capacity"
+              name="capacity"
+              type="number"
+              value={form.capacity}
+              onChange={handleChange}
+            />
+          </SimpleGrid>
+          <Group justify="space-between">
+            <Text c="dimmed" size="sm">
+              Mandatory fields must be completed before submission.
+            </Text>
+            <Button type="submit" loading={submitting}>
+              Create Facility
+            </Button>
+          </Group>
+        </Stack>
+      </form>
+    </Paper>
   );
 }
 

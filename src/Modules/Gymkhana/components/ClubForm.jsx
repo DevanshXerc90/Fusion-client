@@ -1,8 +1,18 @@
 import { useEffect, useState } from "react";
 import PropTypes from "prop-types";
-import { createClub, extractErrorMessage, extractRows, getClubs } from "../api";
-
-const CLUBS_CHANGED_EVENT = "gymkhana:clubs:changed";
+import {
+  Alert,
+  Button,
+  Group,
+  Paper,
+  SimpleGrid,
+  Stack,
+  Text,
+  TextInput,
+  Textarea,
+  Title,
+} from "@mantine/core";
+import { createClub, entityRows, extractErrorMessage, getClubs } from "../api";
 
 const initialState = {
   name: "",
@@ -27,7 +37,7 @@ export default function ClubForm({ onCreated }) {
           return;
         }
 
-        const names = extractRows(data)
+        const names = entityRows(data, "clubs")
           .map((club) =>
             (club.name || club.club_name || "").trim().toLowerCase(),
           )
@@ -92,7 +102,6 @@ export default function ClubForm({ onCreated }) {
 
       setForm(initialState);
       setSuccess("Club created successfully.");
-      window.dispatchEvent(new Event(CLUBS_CHANGED_EVENT));
 
       if (onCreated) {
         onCreated();
@@ -105,39 +114,56 @@ export default function ClubForm({ onCreated }) {
   };
 
   return (
-    <form onSubmit={handleSubmit} style={{ marginBottom: "1rem" }}>
-      <h3>Create Club</h3>
-      <div>
-        <input
-          name="name"
-          value={form.name}
-          onChange={handleChange}
-          placeholder="Club name"
-        />
-      </div>
-      <div>
-        <textarea
-          name="description"
-          value={form.description}
-          onChange={handleChange}
-          placeholder="Club description"
-        />
-      </div>
-      <div>
-        <input
-          name="coordinator_id"
-          type="number"
-          value={form.coordinator_id}
-          onChange={handleChange}
-          placeholder="Coordinator ID (optional)"
-        />
-      </div>
-      <button type="submit" disabled={submitting}>
-        {submitting ? "Creating..." : "Create Club"}
-      </button>
-      {error && <p style={{ color: "#b00020" }}>{error}</p>}
-      {success && <p style={{ color: "#0b6b2d" }}>{success}</p>}
-    </form>
+    <Paper shadow="xs" p="md" radius="md" withBorder mb="md">
+      <form onSubmit={handleSubmit}>
+        <Stack>
+          <Title order={4}>Propose / Create Club</Title>
+          {error && (
+            <Alert color="red" variant="light">
+              {error}
+            </Alert>
+          )}
+          {success && (
+            <Alert color="green" variant="light">
+              {success}
+            </Alert>
+          )}
+          <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
+            <TextInput
+              label="Club name"
+              name="name"
+              value={form.name}
+              onChange={handleChange}
+              required
+            />
+            <TextInput
+              label="Coordinator ID"
+              name="coordinator_id"
+              type="number"
+              value={form.coordinator_id}
+              onChange={handleChange}
+              placeholder="Optional"
+            />
+          </SimpleGrid>
+          <Textarea
+            label="Description"
+            name="description"
+            value={form.description}
+            onChange={handleChange}
+            minRows={3}
+            required
+          />
+          <Group justify="space-between">
+            <Text c="dimmed" size="sm">
+              BR-GM-002 unique name and BR-GM-003 mandatory fields are enforced.
+            </Text>
+            <Button type="submit" loading={submitting}>
+              Submit
+            </Button>
+          </Group>
+        </Stack>
+      </form>
+    </Paper>
   );
 }
 

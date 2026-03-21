@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
-import { extractErrorMessage, extractRows, getBookings } from "../api";
-
-const BOOKINGS_CHANGED_EVENT = "gymkhana:bookings:changed";
+import { Alert, Button, Group, Loader, Paper, Table, Text, Title } from "@mantine/core";
+import { entityRows, extractErrorMessage, getBookings, gymkhanaEntityEvents } from "../api";
 
 export default function BookingTable() {
   const [bookings, setBookings] = useState([]);
@@ -17,7 +16,7 @@ export default function BookingTable() {
       try {
         const data = await getBookings();
         if (mounted) {
-          setBookings(extractRows(data));
+          setBookings(entityRows(data, "bookings"));
         }
       } catch (err) {
         if (mounted) {
@@ -35,53 +34,67 @@ export default function BookingTable() {
     }
 
     fetchBookings();
-    window.addEventListener(BOOKINGS_CHANGED_EVENT, handleBookingsChanged);
+    window.addEventListener(gymkhanaEntityEvents.bookings, handleBookingsChanged);
 
     return () => {
       mounted = false;
-      window.removeEventListener(BOOKINGS_CHANGED_EVENT, handleBookingsChanged);
+      window.removeEventListener(gymkhanaEntityEvents.bookings, handleBookingsChanged);
     };
   }, []);
 
   if (loading) {
-    return <p>Loading bookings...</p>;
+    return (
+      <Group justify="center" py="md">
+        <Loader size="sm" />
+        <Text size="sm">Loading bookings...</Text>
+      </Group>
+    );
   }
 
   if (error) {
-    return <p style={{ color: "#b00020" }}>{error}</p>;
+    return (
+      <Alert color="red" variant="light" mb="md">
+        {error}
+      </Alert>
+    );
   }
 
   return (
-    <table border="1" cellPadding="8" cellSpacing="0" width="100%">
-      <thead>
-        <tr>
-          <th>Facility</th>
-          <th>User</th>
-          <th>Booking Date</th>
-          <th>Start</th>
-          <th>End</th>
-        </tr>
-      </thead>
-      <tbody>
-        {bookings.length === 0 && (
-          <tr>
-            <td colSpan="5" align="center">
-              No bookings found.
-            </td>
-          </tr>
-        )}
-        {bookings.map((booking) => (
-          <tr
-            key={booking.id || `${booking.facility_id}-${booking.booking_date}`}
-          >
-            <td>{booking.facility_name || booking.facility_id || "-"}</td>
-            <td>{booking.user_name || booking.user_id || "-"}</td>
-            <td>{booking.booking_date || "-"}</td>
-            <td>{booking.start_time || "-"}</td>
-            <td>{booking.end_time || "-"}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+    <Paper shadow="xs" p="md" radius="md" withBorder>
+      <Group justify="space-between" mb="md">
+        <Title order={4}>Bookings</Title>
+        <Button variant="light" onClick={() => window.dispatchEvent(new Event(gymkhanaEntityEvents.bookings))}>
+          Refresh
+        </Button>
+      </Group>
+      {bookings.length === 0 ? (
+        <Text c="dimmed" ta="center" py="md">
+          No bookings found.
+        </Text>
+      ) : (
+        <Table striped highlightOnHover withTableBorder>
+          <Table.Thead>
+            <Table.Tr>
+              <Table.Th>Facility</Table.Th>
+              <Table.Th>User</Table.Th>
+              <Table.Th>Booking Date</Table.Th>
+              <Table.Th>Start</Table.Th>
+              <Table.Th>End</Table.Th>
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>
+            {bookings.map((booking) => (
+              <Table.Tr key={booking.id || `${booking.facility_id}-${booking.booking_date}`}>
+                <Table.Td>{booking.facility_name || booking.facility_id || "-"}</Table.Td>
+                <Table.Td>{booking.user_name || booking.user_id || "-"}</Table.Td>
+                <Table.Td>{booking.booking_date || "-"}</Table.Td>
+                <Table.Td>{booking.start_time || "-"}</Table.Td>
+                <Table.Td>{booking.end_time || "-"}</Table.Td>
+              </Table.Tr>
+            ))}
+          </Table.Tbody>
+        </Table>
+      )}
+    </Paper>
   );
 }

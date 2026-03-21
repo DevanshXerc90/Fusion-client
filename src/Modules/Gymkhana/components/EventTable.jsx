@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
-import { extractErrorMessage, extractRows, getEvents } from "../api";
-
-const EVENTS_CHANGED_EVENT = "gymkhana:events:changed";
+import { Alert, Button, Group, Loader, Paper, Table, Text, Title } from "@mantine/core";
+import { entityRows, extractErrorMessage, getEvents, gymkhanaEntityEvents } from "../api";
 
 export default function EventTable() {
   const [events, setEvents] = useState([]);
@@ -17,7 +16,7 @@ export default function EventTable() {
       try {
         const data = await getEvents();
         if (mounted) {
-          setEvents(extractRows(data));
+          setEvents(entityRows(data, "events"));
         }
       } catch (err) {
         if (mounted) {
@@ -35,56 +34,72 @@ export default function EventTable() {
     }
 
     fetchEvents();
-    window.addEventListener(EVENTS_CHANGED_EVENT, handleEventsChanged);
+    window.addEventListener(gymkhanaEntityEvents.events, handleEventsChanged);
 
     return () => {
       mounted = false;
-      window.removeEventListener(EVENTS_CHANGED_EVENT, handleEventsChanged);
+      window.removeEventListener(gymkhanaEntityEvents.events, handleEventsChanged);
     };
   }, []);
 
   if (loading) {
-    return <p>Loading events...</p>;
+    return (
+      <Group justify="center" py="md">
+        <Loader size="sm" />
+        <Text size="sm">Loading events...</Text>
+      </Group>
+    );
   }
 
   if (error) {
-    return <p style={{ color: "#b00020" }}>{error}</p>;
+    return (
+      <Alert color="red" variant="light" mb="md">
+        {error}
+      </Alert>
+    );
   }
 
   return (
-    <table border="1" cellPadding="8" cellSpacing="0" width="100%">
-      <thead>
-        <tr>
-          <th>Event</th>
-          <th>Club</th>
-          <th>Date</th>
-          <th>Venue</th>
-          <th>Status</th>
-        </tr>
-      </thead>
-      <tbody>
-        {events.length === 0 && (
-          <tr>
-            <td colSpan="5" align="center">
-              No events found.
-            </td>
-          </tr>
-        )}
-        {events.map((event) => {
-          const eventDateRaw = event.event_date || event.date;
-          const archived = eventDateRaw && new Date(eventDateRaw) < new Date();
+    <Paper shadow="xs" p="md" radius="md" withBorder>
+      <Group justify="space-between" mb="md">
+        <Title order={4}>Events</Title>
+        <Button variant="light" onClick={() => window.dispatchEvent(new Event(gymkhanaEntityEvents.events))}>
+          Refresh
+        </Button>
+      </Group>
+      {events.length === 0 ? (
+        <Text c="dimmed" ta="center" py="md">
+          No events found.
+        </Text>
+      ) : (
+        <Table striped highlightOnHover withTableBorder>
+          <Table.Thead>
+            <Table.Tr>
+              <Table.Th>Event</Table.Th>
+              <Table.Th>Club</Table.Th>
+              <Table.Th>Date</Table.Th>
+              <Table.Th>Venue</Table.Th>
+              <Table.Th>Status</Table.Th>
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>
+            {events.map((event) => {
+              const eventDateRaw = event.event_date || event.date;
+              const archived = eventDateRaw && new Date(eventDateRaw) < new Date();
 
-          return (
-            <tr key={event.id || `${event.title}-${eventDateRaw}`}>
-              <td>{event.title || event.name || "-"}</td>
-              <td>{event.club_name || event.club || event.club_id || "-"}</td>
-              <td>{eventDateRaw || "-"}</td>
-              <td>{event.venue || "-"}</td>
-              <td>{archived ? "Archived" : "Active"}</td>
-            </tr>
-          );
-        })}
-      </tbody>
-    </table>
+              return (
+                <Table.Tr key={event.id || `${event.title}-${eventDateRaw}`}>
+                  <Table.Td>{event.title || event.name || "-"}</Table.Td>
+                  <Table.Td>{event.club_name || event.club || event.club_id || "-"}</Table.Td>
+                  <Table.Td>{eventDateRaw || "-"}</Table.Td>
+                  <Table.Td>{event.venue || "-"}</Table.Td>
+                  <Table.Td>{archived ? "Archived" : "Active"}</Table.Td>
+                </Table.Tr>
+              );
+            })}
+          </Table.Tbody>
+        </Table>
+      )}
+    </Paper>
   );
 }

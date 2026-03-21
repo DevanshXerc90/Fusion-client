@@ -16,7 +16,7 @@ import Examination from "./Modules/Examination/examination";
 import Database from "./Modules/Database/database";
 import ProgrammeCurriculumRoutes from "./Modules/Program_curriculum/programmCurriculum";
 import NotFoundPage from "./components/NotFoundPage";
-import gymkhanaRoutes from "./routes/gymkhanaRoutes";
+import { moduleRoutes } from "./routes/globalRoutes";
 
 const theme = createTheme({
   breakpoints: {
@@ -88,7 +88,7 @@ export default function App() {
         <Route path="/reset-password" element={<ForgotPassword />} />
         <Route path="/examination/*" element={<Examination />} />
         <Route path="/database/*" element={<Database />} />
-        {gymkhanaRoutes.map((route) => (
+        {moduleRoutes.map((route) => (
           <Route
             key={route.path}
             path={route.path}

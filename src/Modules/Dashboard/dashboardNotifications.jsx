@@ -14,7 +14,10 @@ import {
   Select,
   Text,
   CloseButton,
+  Title,
+  Stack,
 } from "@mantine/core";
+import { useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import classes from "./Dashboard.module.css";
 import { Empty } from "../../components/empty";
@@ -100,6 +103,7 @@ function Dashboard() {
   const [loading, setLoading] = useState(false);
   const [read_Loading, setRead_Loading] = useState(-1);
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   // const tabsListRef = useRef(null);
   const tabItems = [{ title: "Notifications" }, { title: "Announcements" }];
 
@@ -265,6 +269,47 @@ function Dashboard() {
   return (
     <>
       <CustomBreadcrumbs />
+      <Paper withBorder radius="md" p="md" mt="md">
+        <Stack gap="sm">
+          <Title order={4}>Gymkhana Quick Access</Title>
+          <Flex gap="sm" wrap="wrap">
+            <Button variant="light" onClick={() => navigate("/gymkhana/events")}>
+              Events
+            </Button>
+            <Button variant="light" onClick={() => navigate("/gymkhana/clubs")}>
+              Clubs
+            </Button>
+            <Button variant="light" onClick={() => navigate("/gymkhana/facilities")}>
+              Facilities
+            </Button>
+            <Button variant="light" onClick={() => navigate("/gymkhana/bookings")}>
+              Bookings
+            </Button>
+            <Button variant="light" onClick={() => navigate("/gymkhana/memberships")}>
+              Memberships
+            </Button>
+            <Button variant="light" onClick={() => navigate("/gymkhana/elections")}>
+              Elections
+            </Button>
+            <Button variant="light" onClick={() => navigate("/gymkhana/budgets")}>
+              Budgets
+            </Button>
+            <Button variant="light" onClick={() => navigate("/gymkhana/bills")}>
+              Bills
+            </Button>
+            <Button variant="light" onClick={() => navigate("/gymkhana/deactivation")}>
+              Deactivation
+            </Button>
+            <Button variant="light" onClick={() => navigate("/gymkhana/announcements")}>
+              Announcements
+            </Button>
+          </Flex>
+          <Text size="sm" c="dimmed">
+            Phase 2 live: Membership workflow, Elections, Budget submission/review,
+            Bill settlement, Club deactivation, and Announcements/Reports.
+          </Text>
+        </Stack>
+      </Paper>
       <Flex
         justify="space-between"
         align={{ base: "start", sm: "center" }}

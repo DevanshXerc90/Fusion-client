@@ -1,12 +1,13 @@
+import { Stack, Title } from "@mantine/core";
 import BookingTable from "./components/BookingTable";
 import BookingForm from "./components/BookingForm";
 
 export default function Bookings() {
   return (
-    <section style={{ padding: "1rem" }}>
-      <h2>Gymkhana Bookings</h2>
+    <Stack gap="md">
+      <Title order={2}>Gymkhana Bookings</Title>
       <BookingForm />
       <BookingTable />
-    </section>
+    </Stack>
   );
 }

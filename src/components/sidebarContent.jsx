@@ -150,7 +150,7 @@ function SidebarContent({ isCollapsed, toggleSidebar }) {
       label: "Gymkhana",
       id: "gymkhana",
       icon: <GymkhanaIcon size={18} />,
-      url: "/",
+      url: "/gymkhana",
     },
     {
       label: "Institute Work Departments",
@@ -194,7 +194,10 @@ function SidebarContent({ isCollapsed, toggleSidebar }) {
 
   useEffect(() => {
     const filterModules = Modules.filter(
-      (module) => accessibleModules[module.id] || module.id === "home",
+      (module) =>
+        accessibleModules[module.id] ||
+        module.id === "home" ||
+        module.id === "gymkhana",
     );
     setFilteredModules(filterModules);
   }, [accessibleModules]);

@@ -1,12 +1,13 @@
+import { Stack, Title } from "@mantine/core";
 import EventTable from "./components/EventTable";
 import EventForm from "./components/EventForm";
 
 export default function Events() {
   return (
-    <section style={{ padding: "1rem" }}>
-      <h2>Gymkhana Events</h2>
+    <Stack gap="md">
+      <Title order={2}>Gymkhana Events</Title>
       <EventForm />
       <EventTable />
-    </section>
+    </Stack>
   );
 }

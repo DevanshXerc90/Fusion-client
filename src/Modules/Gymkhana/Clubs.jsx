@@ -1,12 +1,13 @@
+import { Stack, Title } from "@mantine/core";
 import ClubTable from "./components/ClubTable";
 import ClubForm from "./components/ClubForm";
 
 export default function Clubs() {
   return (
-    <section style={{ padding: "1rem" }}>
-      <h2>Gymkhana Clubs</h2>
+    <Stack gap="md">
+      <Title order={2}>Gymkhana Clubs</Title>
       <ClubForm />
       <ClubTable />
-    </section>
+    </Stack>
   );
 }

@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
-import { extractErrorMessage, extractRows, getFacilities } from "../api";
-
-const FACILITIES_CHANGED_EVENT = "gymkhana:facilities:changed";
+import { Alert, Button, Group, Loader, Paper, Table, Text, Title } from "@mantine/core";
+import { entityRows, extractErrorMessage, getFacilities, gymkhanaEntityEvents } from "../api";
 
 export default function FacilityTable() {
   const [facilities, setFacilities] = useState([]);
@@ -17,7 +16,7 @@ export default function FacilityTable() {
       try {
         const data = await getFacilities();
         if (mounted) {
-          setFacilities(extractRows(data));
+          setFacilities(entityRows(data, "facilities"));
         }
       } catch (err) {
         if (mounted) {
@@ -35,52 +34,68 @@ export default function FacilityTable() {
     }
 
     fetchFacilities();
-    window.addEventListener(FACILITIES_CHANGED_EVENT, handleFacilitiesChanged);
+    window.addEventListener(gymkhanaEntityEvents.facilities, handleFacilitiesChanged);
 
     return () => {
       mounted = false;
       window.removeEventListener(
-        FACILITIES_CHANGED_EVENT,
+        gymkhanaEntityEvents.facilities,
         handleFacilitiesChanged,
       );
     };
   }, []);
 
   if (loading) {
-    return <p>Loading facilities...</p>;
+    return (
+      <Group justify="center" py="md">
+        <Loader size="sm" />
+        <Text size="sm">Loading facilities...</Text>
+      </Group>
+    );
   }
 
   if (error) {
-    return <p style={{ color: "#b00020" }}>{error}</p>;
+    return (
+      <Alert color="red" variant="light" mb="md">
+        {error}
+      </Alert>
+    );
   }
 
   return (
-    <table border="1" cellPadding="8" cellSpacing="0" width="100%">
-      <thead>
-        <tr>
-          <th>Facility</th>
-          <th>Sport Type</th>
-          <th>Location</th>
-          <th>Capacity</th>
-        </tr>
-      </thead>
-      <tbody>
-        {facilities.length === 0 && (
-          <tr>
-            <td colSpan="4" align="center">
-              No facilities found.
-            </td>
-          </tr>
-        )}
-        {facilities.map((facility) => (
-          <tr key={facility.id || facility.name}>
-            <td>{facility.name || "-"}</td>
-            <td>{facility.sport_type || "-"}</td>
-            <td>{facility.location || "-"}</td>
-            <td>{facility.capacity || "-"}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+    <Paper shadow="xs" p="md" radius="md" withBorder>
+      <Group justify="space-between" mb="md">
+        <Title order={4}>Facilities</Title>
+        <Button variant="light" onClick={() => window.dispatchEvent(new Event(gymkhanaEntityEvents.facilities))}>
+          Refresh
+        </Button>
+      </Group>
+      {facilities.length === 0 ? (
+        <Text c="dimmed" ta="center" py="md">
+          No facilities found.
+        </Text>
+      ) : (
+        <Table striped highlightOnHover withTableBorder>
+          <Table.Thead>
+            <Table.Tr>
+              <Table.Th>Facility</Table.Th>
+              <Table.Th>Sport Type</Table.Th>
+              <Table.Th>Location</Table.Th>
+              <Table.Th>Capacity</Table.Th>
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>
+            {facilities.map((facility) => (
+              <Table.Tr key={facility.id || facility.name}>
+                <Table.Td>{facility.name || "-"}</Table.Td>
+                <Table.Td>{facility.sport_type || "-"}</Table.Td>
+                <Table.Td>{facility.location || "-"}</Table.Td>
+                <Table.Td>{facility.capacity || "-"}</Table.Td>
+              </Table.Tr>
+            ))}
+          </Table.Tbody>
+        </Table>
+      )}
+    </Paper>
   );
 }

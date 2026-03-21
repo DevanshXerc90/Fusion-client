@@ -1,12 +1,13 @@
+import { Stack, Title } from "@mantine/core";
 import FacilityTable from "./components/FacilityTable";
 import FacilityForm from "./components/FacilityForm";
 
 export default function Facilities() {
   return (
-    <section style={{ padding: "1rem" }}>
-      <h2>Gymkhana Facilities</h2>
+    <Stack gap="md">
+      <Title order={2}>Gymkhana Facilities</Title>
       <FacilityForm />
       <FacilityTable />
-    </section>
+    </Stack>
   );
 }
