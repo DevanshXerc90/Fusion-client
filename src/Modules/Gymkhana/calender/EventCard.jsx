@@ -16,7 +16,7 @@ function EventCard({ events }) {
             </Text>
             <Text>Club: {event.club}</Text>
             <Text>Time: {event.start_time}</Text>
-            <Text>Date: {event.start_date}</Text>
+            <Text>Date: {event.date}</Text>
             <Text>Description: {event.details}</Text>
           </Card>
         </Paper>

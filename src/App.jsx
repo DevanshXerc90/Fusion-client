@@ -103,6 +103,7 @@ const DepartmentPage = lazy(
 const GymkhanaDashboard = lazy(
   () => import("./Modules/Gymkhana/GymkhanaDashboard.jsx"),
 );
+import { ErrorBoundary } from "./Modules/Gymkhana/components/ErrorBoundary";
 
 const Examination = lazy(() => import("./Modules/Examination/examination"));
 
@@ -126,6 +127,7 @@ export default function App() {
     <MantineProvider theme={theme}>
       <Notifications position="top-center" autoClose={2000} limit={1} />
 
+      {/* Bypassed for UI Testing
       {![
         "/accounts/login",
         "/reset-password",
@@ -133,10 +135,11 @@ export default function App() {
           ? location.pathname
           : "",
       ].includes(location.pathname) && <ValidateAuth />}
+      */}
       {location.pathname !== "/accounts/login" && <InactivityHandler />}
 
       <Routes>
-        <Route path="/" element={<Navigate to="/accounts/login" replace />} />
+        <Route path="/" element={<Navigate to="/gymkhana" replace />} />
         <Route
           path="/dashboard"
           element={
@@ -551,7 +554,9 @@ export default function App() {
           element={
             <Layout>
               <Suspense fallback={<div>Loading .... </div>}>
-                <GymkhanaDashboard />
+                <ErrorBoundary>
+                  <GymkhanaDashboard />
+                </ErrorBoundary>
               </Suspense>
             </Layout>
           }

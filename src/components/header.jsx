@@ -82,23 +82,22 @@ function Header({ opened, toggleSidebar }) {
         logoutRoute,
         {},
         {
-          // 3 hours got wasted just because of an empty brackets :)
           headers: {
             Authorization: `Token ${token}`,
             "Content-Type": "application/json",
           },
         },
       );
-
+      console.log("User logged out successfully");
+    } catch (err) {
+      console.error("Logout error:", err);
+    } finally {
+      // Always clear local state and redirect, even if server call fails
       if (localStorage.getItem("pfNo") != null) {
         dispatch(setPfNo(null));
       }
       localStorage.removeItem("authToken");
       navigate("/accounts/login");
-      // queryclient.invalidateQueries();
-      console.log("User logged out successfully");
-    } catch (err) {
-      console.error("Logout error:", err);
     }
   };
 

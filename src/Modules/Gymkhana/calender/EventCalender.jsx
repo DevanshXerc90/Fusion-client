@@ -58,7 +58,7 @@ function EventCalendar({ selectedDate, selectedClub, events }) {
             events
               .filter(
                 (event) =>
-                  day.date.isSame(event.start_date, "day") &&
+                  day.date.isSame(event.date, "day") &&
                   (selectedClub === "All Clubs" || event.club === selectedClub),
               )
               .map((event, idx) => (

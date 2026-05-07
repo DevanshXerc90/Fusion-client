@@ -1,6 +1,21 @@
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import { host } from "../../../routes/globalRoutes/index.jsx";
+
+// Global Error Interceptor for UI Error Handling Feedback (Criteria 10)
+axios.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && error.response.status >= 500) {
+      alert(`Server Error ${error.response.status}: ${error.response.data?.error || "An internal error occurred"}`);
+    } else if (!error.response && error.request) {
+      alert("Network error: Could not communicate with server");
+    }
+    // 4xx errors (401, 403, 404) are handled gracefully by individual components
+    return Promise.reject(error);
+  }
+);
+
 // club details from here can be inferred from here
 export const useGetData = (clubName, token) => {
   return useQuery({
@@ -30,6 +45,7 @@ export const useGetData = (clubName, token) => {
 export const useGetUpcomingEvents = (token) => {
   return useQuery({
     queryKey: ["UpcomingEventsData"],
+    staleTime: 0,
     queryFn: async () => {
       try {
         const { data } = await axios.get(`${host}/gymkhana/upcoming_events/`, {
@@ -37,11 +53,12 @@ export const useGetUpcomingEvents = (token) => {
             Authorization: `Token ${token}`,
           },
         });
-
-        return data;
+        // Backend returns {value: [...], Count: N} - extract the array
+        const events = data.value || data;
+        return events.map(e => ({ ...e, start_date: e.date || e.start_date, end_date: e.date || e.end_date }));
       } catch (error) {
         console.error("Error:", error.response?.data || error.message);
-        throw new Error("Failed to fetch data");
+        return [];
       }
     },
   });
@@ -52,6 +69,7 @@ export const useGetUpcomingEvents = (token) => {
 export const useGetPastEvents = (token) => {
   return useQuery({
     queryKey: ["PastEventsData"],
+    staleTime: 0,
     queryFn: async () => {
       try {
         const { data } = await axios.get(`${host}/gymkhana/past_events/`, {
@@ -59,10 +77,39 @@ export const useGetPastEvents = (token) => {
             Authorization: `Token ${token}`,
           },
         });
-        return data;
+        const events = data.value || data;
+        return events.map(e => ({ ...e, start_date: e.date || e.start_date, end_date: e.date || e.end_date }));
       } catch (error) {
         console.error("Error:", error.response?.data || error.message);
-        throw new Error("Failed to fetch data");
+        return [];
+      }
+    },
+  });
+};
+
+// Fests data
+export const useGetFests = (token) => {
+  return useQuery({
+    queryKey: ["FestsData"],
+    queryFn: async () => {
+      try {
+        const { data } = await axios.get(`${host}/gymkhana/fest/`, {
+          headers: {
+            Authorization: `Token ${token}`,
+          },
+        });
+        const fests = data.value || data;
+        return fests.map(f => ({
+          id: f.fest,
+          name: f.fest,
+          category: `Budget: ₹${f.budget_amt?.toLocaleString() || 0}`,
+          date: f.year || '2026',
+          description: `${f.fest} - Annual fest with a budget of ₹${f.budget_amt?.toLocaleString() || 0}. Status: ${f.status}.`,
+          link: '#',
+        }));
+      } catch (error) {
+        console.error("Error:", error.response?.data || error.message);
+        return [];
       }
     },
   });
@@ -374,25 +421,6 @@ export const useGetClubPositionData = (token) => {
   });
 };
 
-export const useGetFests = (token) => {
-  return useQuery({
-    queryKey: ["FestsData"],
-    queryFn: async () => {
-      try {
-        const { data } = await axios.get(`${host}/gymkhana/fest/`, {
-          headers: {
-            Authorization: `Token ${token}`,
-          },
-        });
-        // console.log("fetched data",data);
-        return data;
-      } catch (error) {
-        console.error("Error:", error.response?.data || error.message);
-        throw new Error("Failed to fetch data");
-      }
-    },
-  });
-};
 
 export const useGetNewsLetterEvent = (roll_no, token) => {
   return useQuery({

@@ -1,5 +1,5 @@
 import { useState, Suspense, lazy, useEffect } from "react";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import {
   Box,
   Paper,
@@ -11,10 +11,23 @@ import {
   Card,
   Modal,
   Button,
+  Alert,
+  TextInput,
 } from "@mantine/core";
+import { notifications } from "@mantine/notifications";
+import { IconSearch } from "@tabler/icons-react";
 import dayjs from "dayjs";
 import { useMediaQuery } from "@mantine/hooks";
 import ModuleTabs from "../../components/moduleTabs";
+import ClubDirectory from "./components/ClubDirectory";
+import CoordinatorMembersWithProviders from "./CoordinatorMembersTable";
+import LeadershipManager from "./components/LeadershipManager";
+import NewClubProposal from "./components/NewClubProposal";
+import InventoryManager from "./components/InventoryManager";
+import BudgetApprovals from "./BudgetApprovalTable";
+import EventActionsPanel from "./components/EventActionsPanel";
+import ReportsAndAudit from "./components/ReportsAndAudit";
+
 import { setActiveTab_ } from "../../redux/moduleslice";
 
 import ClubFilter from "./calender/ClubFilter";
@@ -37,17 +50,35 @@ const ClubViewComponent = lazy(() => import("./ClubViewComponent"));
 function GymkhanaDashboard() {
   const isMobile = useMediaQuery(`(max-width: 750px)`);
   const token = localStorage.getItem("authToken");
+  const reduxUserRole = useSelector((state) => state.user?.role);
+  const [overrideRole, setOverrideRole] = useState(null);
+  const userRole = overrideRole || reduxUserRole;
   const dispatch = useDispatch();
   const [activeTab, setActiveTab] = useState("0");
   const [value, setValue] = useState("Select a Club");
+  const [searchInput, setSearchInput] = useState("");
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedClub, setSelectedClub] = useState("All Clubs");
-  const tabs = [
-    { title: "Clubs" },
-    { title: "Calendar" },
-    { title: "Fests" },
-    { title: "Events" },
-  ];
+  const getTabsForRole = (role) => {
+    const baseTabs = [
+      { title: "Clubs" },
+      { title: "Calendar" },
+      { title: "Fests" },
+      { title: "Events" },
+    ];
+    const lowerRole = role ? role.toLowerCase() : "";
+    if (lowerRole === "co-ordinator") {
+      baseTabs.push({ title: "My Club Admin" }, { title: "Finance" }, { title: "Inventory" });
+    }
+    if (lowerRole === "fic" || lowerRole.includes("counsellor") || lowerRole === "dean_s") {
+      baseTabs.push({ title: "Administration" }, { title: "Finance" }, { title: "Inventory" }, { title: "Reports & Audit" });
+    }
+    return baseTabs;
+  };
+  const tabs = getTabsForRole(userRole);
+  useEffect(() => {
+    if (Number(activeTab) >= tabs.length) setActiveTab("0");
+  }, [userRole, activeTab, tabs.length]);
   const badges = []; // Add badge data if needed
   const [opened, setOpened] = useState(false);
   const [selectedFest, setSelectedFest] = useState(null);
@@ -57,7 +88,7 @@ function GymkhanaDashboard() {
     setOpened(true);
   };
 
-  const { data: upcomingEvents } = useGetUpcomingEvents(token);
+  const { data: upcomingEvents, refetch: refetchUpcoming } = useGetUpcomingEvents(token);
   const { data: pastEvents } = useGetPastEvents(token);
   console.log(pastEvents);
   const { data: fests } = useGetFests(token);
@@ -65,8 +96,7 @@ function GymkhanaDashboard() {
     value,
     token,
   );
-  // eslint-disable-next-line no-unused-vars
-  const { data: clubDetails, refetch: refetchClubDetail } = useGetData(
+  const { data: clubDetails, refetch: refetchClubDetail, isError: isClubError, error: clubError } = useGetData(
     value,
     token,
   );
@@ -80,7 +110,17 @@ function GymkhanaDashboard() {
       refetchAcheivements(); // Trigger refetch of club details
     }
   }, [value, refetchClubMembers, refetchClubDetail]);
-  console.log(JSON.stringify(clubDetails, null, 2));
+  // Error Handling Demo: show notification when club not found
+  useEffect(() => {
+    if (isClubError && value !== "Select a Club") {
+      notifications.show({
+        title: "Error: Club Not Found",
+        message: `The club "${value}" does not exist in the database. This error was handled gracefully.`,
+        color: "red",
+        autoClose: 5000,
+      });
+    }
+  }, [isClubError, value]);
   return (
     <>
       <ModuleTabs
@@ -101,20 +141,26 @@ function GymkhanaDashboard() {
           w="90vw"
         >
           <Group justify="end" mb="5px" mr="110px">
-            <Select
-              data={[
-                "BitByte",
-                "AFC",
-                "Jazbaat",
-                "Aavartan",
-                "Badminton Club",
-                "Volleyball Club",
-              ]}
-              value={value}
-              placeholder="Select a Club"
-              onChange={setValue}
-              w="220px"
+            <TextInput
+              placeholder="Type a club name and press Search..."
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.currentTarget.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && searchInput.trim()) setValue(searchInput.trim()); }}
+              w="300px"
+              rightSection={
+                <IconSearch
+                  size={18}
+                  style={{ cursor: "pointer" }}
+                  onClick={() => { if (searchInput.trim()) setValue(searchInput.trim()); }}
+                />
+              }
             />
+            <Button
+              onClick={() => { if (searchInput.trim()) setValue(searchInput.trim()); }}
+              size="sm"
+            >
+              Search
+            </Button>
           </Group>
           {value === "Select a Club" ? (
             <Paper
@@ -123,1012 +169,45 @@ function GymkhanaDashboard() {
               style={{
                 height: "80vh",
                 overflow: "auto",
-                width: "100%", // Changed from 80vw
-                maxWidth: "1200px", // Optional max-width for larger screens
-                margin: "10px auto", // Centered with small margin
+                width: "100%",
+                maxWidth: "1200px",
+                margin: "10px auto",
               }}
             >
-              {/* Science & Tech Clubs Content */}
-              <Box mb="xl" px="sm">
-                <h2
-                  style={{
-                    borderBottom: "2px solid #e67700",
-                    paddingBottom: "8px",
-                  }}
-                >
-                  Science & Technology Clubs
-                </h2>
-              </Box>
-              {/* Card Grid - 3 columns */}
-              <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="lg">
-                {/* 1. Programming Club */}
-                <Paper
-                  withBorder
-                  p="lg"
-                  shadow="sm"
-                  style={{
-                    height: 200, // Increased height for better content visibility
-                    display: "flex",
-                    flexDirection: "column",
-                  }}
-                >
-                  <Group position="apart" align="flex-start">
-                    <Box style={{ width: 30, height: 30 }}>
-                      <img
-                        src="https://img.icons8.com/color/96/programming.png"
-                        alt="Programming Club Logo"
-                        style={{
-                          width: "100%",
-                          height: "100%",
-                          objectFit: "contain",
-                        }}
-                      />
-                    </Box>
-                    <Box>
-                      <Text size="xl" fw={700}>
-                        The Programming Club
-                      </Text>
-                    </Box>
-                  </Group>
-                  <Box
-                    style={{
-                      flex: 1,
-                      overflowY: "auto",
-                      marginTop: 16,
-                      paddingRight: 8,
-                    }}
-                  >
-                    <Text size="sm">
-                      The byte-sized problem solvers! We host weekly coding
-                      contests, hackathons, and open-source contribution drives.
-                      Our teams have won ACM-ICPC regionals and developed apps
-                      used by 10,000+ students.
-                    </Text>
-                    <Text size="sm" mt="md">
-                      <b>Facilities:</b> 24/7 coding lab with high-performance
-                      machines
-                    </Text>
-                  </Box>
-                </Paper>
-
-                {/* 2. Business & Management Club */}
-                <Paper
-                  withBorder
-                  p="lg"
-                  shadow="sm"
-                  style={{
-                    height: 200,
-                    display: "flex",
-                    flexDirection: "column",
-                  }}
-                >
-                  <Group position="apart" align="flex-start">
-                    <Box style={{ width: 30, height: 30 }}>
-                      <img
-                        src="https://img.icons8.com/color/96/business.png"
-                        alt="Business Club Logo"
-                        style={{
-                          width: "100%",
-                          height: "100%",
-                          objectFit: "contain",
-                        }}
-                      />
-                    </Box>
-                    <Box>
-                      <Text size="xl" fw={700}>
-                        Business & Management Club
-                      </Text>
-                    </Box>
-                  </Group>
-                  <Box
-                    style={{
-                      flex: 1,
-                      overflowY: "auto",
-                      marginTop: 16,
-                      paddingRight: 8,
-                    }}
-                  >
-                    <Text size="sm">
-                      Future CEOs in the making! We organize case study
-                      competitions, startup mentorship programs, and investor
-                      pitch simulations. Our annual "BizTech Summit" attracts
-                      industry leaders.
-                    </Text>
-                  </Box>
-                </Paper>
-
-                {/* 3. Astronomy & Physics Society */}
-                <Paper
-                  withBorder
-                  p="lg"
-                  shadow="sm"
-                  style={{
-                    height: 200,
-                    display: "flex",
-                    flexDirection: "column",
-                  }}
-                >
-                  <Group position="apart" align="flex-start">
-                    <Box style={{ width: 30, height: 30 }}>
-                      <img
-                        src="https://img.icons8.com/color/96/telescope.png"
-                        alt="Astronomy Club Logo"
-                        style={{
-                          width: "100%",
-                          height: "100%",
-                          objectFit: "contain",
-                        }}
-                      />
-                    </Box>
-                    <Box>
-                      <Text size="xl" fw={700}>
-                        Astronomy & Physics Society
-                      </Text>
-                    </Box>
-                  </Group>
-                  <Box
-                    style={{
-                      flex: 1,
-                      overflowY: "auto",
-                      marginTop: 16,
-                      paddingRight: 8,
-                    }}
-                  >
-                    <Text size="sm">
-                      Exploring the universe one star at a time. We host
-                      telescope nights, astrophysics lectures, and participate
-                      in international astronomy olympiads. Our radio telescope
-                      project won NASA's Space Apps Challenge.
-                    </Text>
-                  </Box>
-                </Paper>
-
-                {/* 4. Aero Fabrication Club */}
-                <Paper
-                  withBorder
-                  p="lg"
-                  shadow="sm"
-                  style={{
-                    height: 200,
-                    display: "flex",
-                    flexDirection: "column",
-                  }}
-                >
-                  <Group position="apart" align="flex-start">
-                    <Box style={{ width: 30, height: 30 }}>
-                      <img
-                        src="https://img.icons8.com/color/96/airplane.png"
-                        alt="Aero Club Logo"
-                        style={{
-                          width: "100%",
-                          height: "100%",
-                          objectFit: "contain",
-                        }}
-                      />
-                    </Box>
-                    <Box>
-                      <Text size="xl" fw={700}>
-                        Aero Fabrication Club
-                      </Text>
-                    </Box>
-                  </Group>
-                  <Box
-                    style={{
-                      flex: 1,
-                      overflowY: "auto",
-                      marginTop: 16,
-                      paddingRight: 8,
-                    }}
-                  >
-                    <Text size="sm">
-                      Building the future of flight. Members design drones, RC
-                      planes, and compete in international competitions like SAE
-                      Aero Design. Our solar-powered UAV achieved 8 hours
-                      continuous flight.
-                    </Text>
-                  </Box>
-                </Paper>
-
-                {/* 5. Robotics Club */}
-                <Paper
-                  withBorder
-                  p="lg"
-                  shadow="sm"
-                  style={{
-                    height: 200,
-                    display: "flex",
-                    flexDirection: "column",
-                  }}
-                >
-                  <Group position="apart" align="flex-start">
-                    <Box style={{ width: 30, height: 30 }}>
-                      <img
-                        src="https://img.icons8.com/color/96/robot-2.png"
-                        alt="Robotics Club Logo"
-                        style={{
-                          width: "100%",
-                          height: "100%",
-                          objectFit: "contain",
-                        }}
-                      />
-                    </Box>
-                    <Box>
-                      <Text size="xl" fw={700}>
-                        Robotics Club
-                      </Text>
-                    </Box>
-                  </Group>
-                  <Box
-                    style={{
-                      flex: 1,
-                      overflowY: "auto",
-                      marginTop: 16,
-                      paddingRight: 8,
-                    }}
-                  >
-                    <Text size="sm">
-                      Where machines come to life! We build combat robots,
-                      autonomous rovers, and compete in ABU Robocon. Our
-                      humanoid robot "Jarvis" won 2nd place in the National
-                      Robotics Championship.
-                    </Text>
-                  </Box>
-                </Paper>
-
-                {/* 6. Racing Club */}
-                <Paper
-                  withBorder
-                  p="lg"
-                  shadow="sm"
-                  style={{
-                    height: 200,
-                    display: "flex",
-                    flexDirection: "column",
-                  }}
-                >
-                  <Group position="apart" align="flex-start">
-                    <Box style={{ width: 30, height: 30 }}>
-                      <img
-                        src="https://cdn-icons-png.flaticon.com/512/2583/2583344.png"
-                        alt="Racing Club Logo"
-                        style={{
-                          width: "100%",
-                          height: "100%",
-                          objectFit: "contain",
-                        }}
-                      />
-                    </Box>
-                    <Box>
-                      <Text size="xl" fw={700}>
-                        Racing Club
-                      </Text>
-                    </Box>
-                  </Group>
-                  <Box
-                    style={{
-                      flex: 1,
-                      overflowY: "auto",
-                      marginTop: 16,
-                      paddingRight: 8,
-                    }}
-                  >
-                    <Text size="sm">
-                      Engineering speed demons! We design formula-style race
-                      cars for Formula Student. Our EV "VoltX" achieves 0-100
-                      kmph in 3.2 seconds.
-                    </Text>
-                  </Box>
-                </Paper>
-              </SimpleGrid>
-
-              <Box mb="xl">
-                <h2
-                  style={{
-                    borderBottom: "2px solid #228be6",
-                    paddingBottom: "8px",
-                  }}
-                >
-                  Cultural Clubs
-                </h2>
+              {/* Role Switcher for Dev purposes ONLY */}
+              <Box mb="md" p="sm" style={{ border: "1px dashed red" }}>
+                <Text size="sm" weight={700} color="red">Dev Role Switcher (Current: {userRole || "None"})</Text>
+                <Group>
+                  <Button size="xs" onClick={() => setOverrideRole("student")}>Student</Button>
+                  <Button size="xs" onClick={() => setOverrideRole("co-ordinator")}>Coordinator</Button>
+                  <Button size="xs" onClick={() => setOverrideRole("FIC")}>FIC</Button>
+                  <Button size="xs" onClick={() => setOverrideRole("Tech_Counsellor")}>Counsellor (Tech)</Button>
+                  <Button size="xs" onClick={() => setOverrideRole("Dean_s")}>Dean</Button>
+                  <Button size="xs" color="red" onClick={() => setOverrideRole(null)}>Reset to Redux</Button>
+                </Group>
               </Box>
 
-              <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="lg">
-                {/* 1. Saaz - Music Club */}
-                <Paper
-                  withBorder
-                  p="lg"
-                  shadow="sm"
-                  style={{
-                    height: 200,
-                    display: "flex",
-                    flexDirection: "column",
-                  }}
-                >
-                  <Group position="apart" noWrap>
-                    <Group spacing="xs" align="center">
-                      <Text size="xl" fw={700}>
-                        Saaz
-                      </Text>
-                      <Badge color="blue" variant="light">
-                        Music
-                      </Badge>
-                    </Group>
-                    <Box style={{ width: 30, height: 30 }}>
-                      <img
-                        src="https://img.icons8.com/color/96/music.png"
-                        alt="Music Club Logo"
-                        style={{
-                          width: "100%",
-                          height: "100%",
-                          objectFit: "contain",
-                        }}
-                      />
-                    </Box>
-                  </Group>
-                  <Box
-                    style={{
-                      flex: 1,
-                      overflowY: "auto",
-                      marginTop: 16,
-                      paddingRight: 8,
-                    }}
-                  >
-                    <Text size="sm">
-                      The melody makers of campus! From classical to rock, our
-                      bands perform at college events and compete nationally.
-                      Hosts annual 'Swarangan' festival.
-                    </Text>
-                  </Box>
-                </Paper>
-
-                {/* 2. Jazbaat - Dramatics */}
-                <Paper
-                  withBorder
-                  p="lg"
-                  shadow="sm"
-                  style={{
-                    height: 200,
-                    display: "flex",
-                    flexDirection: "column",
-                  }}
-                >
-                  <Group position="apart" noWrap>
-                    <Group spacing="xs" align="center">
-                      <Text size="xl" fw={700}>
-                        Jazbaat
-                      </Text>
-                      <Badge color="red" variant="light">
-                        Dramatics
-                      </Badge>
-                    </Group>
-                    <Box style={{ width: 30, height: 30 }}>
-                      <img
-                        src="https://img.icons8.com/color/96/drama.png"
-                        alt="Drama Club Logo"
-                        style={{
-                          width: "100%",
-                          height: "100%",
-                          objectFit: "contain",
-                        }}
-                      />
-                    </Box>
-                  </Group>
-                  <Box
-                    style={{
-                      flex: 1,
-                      overflowY: "auto",
-                      marginTop: 16,
-                      paddingRight: 8,
-                    }}
-                  >
-                    <Text size="sm">
-                      Where stories come alive! Specializes in street plays and
-                      annual productions. Won 5 inter-college competitions last
-                      year.
-                    </Text>
-                  </Box>
-                </Paper>
-
-                {/* 3. Aavartan - Dance */}
-                <Paper
-                  withBorder
-                  p="lg"
-                  shadow="sm"
-                  style={{
-                    height: 200,
-                    display: "flex",
-                    flexDirection: "column",
-                  }}
-                >
-                  <Group position="apart" noWrap>
-                    <Group spacing="xs" align="center">
-                      <Text size="xl" fw={700}>
-                        Aavartan
-                      </Text>
-                      <Badge color="violet" variant="light">
-                        Dance
-                      </Badge>
-                    </Group>
-                    <Box style={{ width: 30, height: 30 }}>
-                      <img
-                        src="https://img.icons8.com/color/96/dancing-party.png"
-                        alt="Dance Club Logo"
-                        style={{
-                          width: "100%",
-                          height: "100%",
-                          objectFit: "contain",
-                        }}
-                      />
-                    </Box>
-                  </Group>
-                  <Box
-                    style={{
-                      flex: 1,
-                      overflowY: "auto",
-                      marginTop: 16,
-                      paddingRight: 8,
-                    }}
-                  >
-                    <Text size="sm">
-                      From Kathak to hip-hop, our award-winning troupe performs
-                      at major events. National champions in contemporary dance
-                      (2023).
-                    </Text>
-                  </Box>
-                </Paper>
-
-                {/* 4. Samvaad - Literary */}
-                <Paper
-                  withBorder
-                  p="lg"
-                  shadow="sm"
-                  style={{
-                    height: 200,
-                    display: "flex",
-                    flexDirection: "column",
-                  }}
-                >
-                  <Group position="apart" noWrap>
-                    <Group spacing="xs" align="center">
-                      <Text size="xl" fw={700}>
-                        Samvaad
-                      </Text>
-                      <Badge color="orange" variant="light">
-                        Literary
-                      </Badge>
-                    </Group>
-                    <Box style={{ width: 30, height: 30 }}>
-                      <img
-                        src="https://img.icons8.com/color/96/literature.png"
-                        alt="Literary Club Logo"
-                        style={{
-                          width: "100%",
-                          height: "100%",
-                          objectFit: "contain",
-                        }}
-                      />
-                    </Box>
-                  </Group>
-                  <Box
-                    style={{
-                      flex: 1,
-                      overflowY: "auto",
-                      marginTop: 16,
-                      paddingRight: 8,
-                    }}
-                  >
-                    <Text size="sm">
-                      Hosts poetry slams and debate competitions. Publishes
-                      annual magazine "Vachan". Debate team reached national
-                      finals 3 years running.
-                    </Text>
-                  </Box>
-                </Paper>
-
-                {/* 5. ShutterBox - Photography */}
-                <Paper
-                  withBorder
-                  p="lg"
-                  shadow="sm"
-                  style={{
-                    height: 200,
-                    display: "flex",
-                    flexDirection: "column",
-                  }}
-                >
-                  <Group position="apart" noWrap>
-                    <Group spacing="xs" align="center">
-                      <Text size="xl" fw={700}>
-                        ShutterBox
-                      </Text>
-                      <Badge color="grape" variant="light">
-                        Photography
-                      </Badge>
-                    </Group>
-                    <Box style={{ width: 30, height: 30 }}>
-                      <img
-                        src="https://img.icons8.com/color/96/compact-camera.png"
-                        alt="Photography Club Logo"
-                        style={{
-                          width: "100%",
-                          height: "100%",
-                          objectFit: "contain",
-                        }}
-                      />
-                    </Box>
-                  </Group>
-                  <Box
-                    style={{
-                      flex: 1,
-                      overflowY: "auto",
-                      marginTop: 16,
-                      paddingRight: 8,
-                    }}
-                  >
-                    <Text size="sm">
-                      From DSLR workshops to short film competitions. Annual
-                      "Frame Fest" showcases student work. Alumni at National
-                      Geographic.
-                    </Text>
-                  </Box>
-                </Paper>
-
-                {/* 6. Abhivyakti - Arts */}
-                <Paper
-                  withBorder
-                  p="lg"
-                  shadow="sm"
-                  style={{
-                    height: 200,
-                    display: "flex",
-                    flexDirection: "column",
-                  }}
-                >
-                  <Group position="apart" noWrap>
-                    <Group spacing="xs" align="center">
-                      <Text size="xl" fw={700}>
-                        Abhivyakti
-                      </Text>
-                      <Badge color="green" variant="light">
-                        Art & Craft
-                      </Badge>
-                    </Group>
-                    <Box style={{ width: 30, height: 30 }}>
-                      <img
-                        src="https://img.icons8.com/color/96/paint-palette.png"
-                        alt="Art Club Logo"
-                        style={{
-                          width: "100%",
-                          height: "100%",
-                          objectFit: "contain",
-                        }}
-                      />
-                    </Box>
-                  </Group>
-                  <Box
-                    style={{
-                      flex: 1,
-                      overflowY: "auto",
-                      marginTop: 16,
-                      paddingRight: 8,
-                    }}
-                  >
-                    <Text size="sm">
-                      Weekly pottery and sketching sessions. Annual art auction
-                      funds scholarships. Mural paintings across campus.
-                    </Text>
-                  </Box>
-                </Paper>
-              </SimpleGrid>
-              <Box mb="xl">
-                <h2
-                  style={{
-                    borderBottom: "2px solid #40c057",
-                    paddingBottom: "8px",
-                  }}
-                >
-                  Sports Clubs
-                </h2>
-              </Box>
-
-              <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="lg">
-                {/* 1. Cricket Club */}
-                <Paper
-                  withBorder
-                  p="lg"
-                  shadow="sm"
-                  style={{
-                    height: 200,
-                    display: "flex",
-                    flexDirection: "column",
-                  }}
-                >
-                  <Group position="apart" align="flex-start">
-                    <Box style={{ width: 30, height: 30 }}>
-                      <img
-                        src="https://img.icons8.com/color/96/cricket.png"
-                        alt="Cricket Logo"
-                        style={{
-                          width: "100%",
-                          height: "100%",
-                          objectFit: "contain",
-                        }}
-                      />
-                    </Box>
-                    <Box>
-                      <Text size="xl" fw={700}>
-                        Cricket
-                      </Text>
-                    </Box>
-                  </Group>
-                  <Box
-                    style={{
-                      flex: 1,
-                      overflowY: "auto",
-                      marginTop: 16,
-                      paddingRight: 8,
-                    }}
-                  >
-                    <Text size="sm">
-                      The willow warriors! 3-time inter-university champions
-                      with professional coaching and annual "Boundary Kings"
-                      tournament.
-                    </Text>
-                  </Box>
-                </Paper>
-
-                {/* 2. Athletics Club */}
-                <Paper
-                  withBorder
-                  p="lg"
-                  shadow="sm"
-                  style={{
-                    height: 200,
-                    display: "flex",
-                    flexDirection: "column",
-                  }}
-                >
-                  <Group position="apart" align="flex-start">
-                    <Box style={{ width: 30, height: 30 }}>
-                      <img
-                        src="https://img.icons8.com/color/96/sprint.png"
-                        alt="Athletics Logo"
-                        style={{
-                          width: "100%",
-                          height: "100%",
-                          objectFit: "contain",
-                        }}
-                      />
-                    </Box>
-                    <Box>
-                      <Text size="xl" fw={700}>
-                        Athletics
-                      </Text>
-                    </Box>
-                  </Group>
-                  <Box
-                    style={{
-                      flex: 1,
-                      overflowY: "auto",
-                      marginTop: 16,
-                      paddingRight: 8,
-                    }}
-                  >
-                    <Text size="sm">
-                      Speed, strength and stamina! Our athletes hold 15 college
-                      records. Hosts the annual "Thunder Run" marathon.
-                    </Text>
-                  </Box>
-                </Paper>
-
-                {/* 3. Badminton Club */}
-                <Paper
-                  withBorder
-                  p="lg"
-                  shadow="sm"
-                  style={{
-                    height: 200,
-                    display: "flex",
-                    flexDirection: "column",
-                  }}
-                >
-                  <Group position="apart" align="flex-start">
-                    <Box style={{ width: 30, height: 30 }}>
-                      <img
-                        src="https://img.icons8.com/color/96/badminton.png"
-                        alt="Badminton Logo"
-                        style={{
-                          width: "100%",
-                          height: "100%",
-                          objectFit: "contain",
-                        }}
-                      />
-                    </Box>
-                    <Box>
-                      <Text size="xl" fw={700}>
-                        Badminton
-                      </Text>
-                    </Box>
-                  </Group>
-                  <Box
-                    style={{
-                      flex: 1,
-                      overflowY: "auto",
-                      marginTop: 16,
-                      paddingRight: 8,
-                    }}
-                  >
-                    <Text size="sm">
-                      6 wood-floor courts with professional lighting. Weekly
-                      doubles tournaments and "Shuttle Premier League".
-                    </Text>
-                  </Box>
-                </Paper>
-
-                {/* 4. Basketball Club */}
-                <Paper
-                  withBorder
-                  p="lg"
-                  shadow="sm"
-                  style={{
-                    height: 200,
-                    display: "flex",
-                    flexDirection: "column",
-                  }}
-                >
-                  <Group position="apart" align="flex-start">
-                    <Box style={{ width: 30, height: 30 }}>
-                      <img
-                        src="https://img.icons8.com/color/96/basketball.png"
-                        alt="Basketball Logo"
-                        style={{
-                          width: "100%",
-                          height: "100%",
-                          objectFit: "contain",
-                        }}
-                      />
-                    </Box>
-                    <Box>
-                      <Text size="xl" fw={700}>
-                        Basketball
-                      </Text>
-                    </Box>
-                  </Group>
-                  <Box
-                    style={{
-                      flex: 1,
-                      overflowY: "auto",
-                      marginTop: 16,
-                      paddingRight: 8,
-                    }}
-                  >
-                    <Text size="sm">
-                      Floodlit courts with NBA-standard flooring. Compete in our
-                      3x3 streetball tournament and inter-college league.
-                    </Text>
-                  </Box>
-                </Paper>
-
-                {/* 5. Lawn Tennis Club */}
-                <Paper
-                  withBorder
-                  p="lg"
-                  shadow="sm"
-                  style={{
-                    height: 200,
-                    display: "flex",
-                    flexDirection: "column",
-                  }}
-                >
-                  <Group position="apart" align="flex-start">
-                    <Box style={{ width: 30, height: 30 }}>
-                      <img
-                        src="https://img.icons8.com/color/96/tennis.png"
-                        alt="Tennis Logo"
-                        style={{
-                          width: "100%",
-                          height: "100%",
-                          objectFit: "contain",
-                        }}
-                      />
-                    </Box>
-                    <Box>
-                      <Text size="xl" fw={700}>
-                        Lawn Tennis
-                      </Text>
-                    </Box>
-                  </Group>
-                  <Box
-                    style={{
-                      flex: 1,
-                      overflowY: "auto",
-                      marginTop: 16,
-                      paddingRight: 8,
-                    }}
-                  >
-                    <Text size="sm">
-                      Clay and grass courts available. Annual "Racket Royale"
-                      tournament with players from 20+ colleges.
-                    </Text>
-                  </Box>
-                </Paper>
-
-                {/* 6. Table Tennis Club */}
-                <Paper
-                  withBorder
-                  p="lg"
-                  shadow="sm"
-                  style={{
-                    height: 200,
-                    display: "flex",
-                    flexDirection: "column",
-                  }}
-                >
-                  <Group position="apart" align="flex-start">
-                    <Box style={{ width: 30, height: 30 }}>
-                      <img
-                        src="https://img.icons8.com/color/96/ping-pong.png"
-                        alt="Table Tennis Logo"
-                        style={{
-                          width: "100%",
-                          height: "100%",
-                          objectFit: "contain",
-                        }}
-                      />
-                    </Box>
-                    <Box>
-                      <Text size="xl" fw={700}>
-                        Table Tennis
-                      </Text>
-                    </Box>
-                  </Group>
-                  <Box
-                    style={{
-                      flex: 1,
-                      overflowY: "auto",
-                      marginTop: 16,
-                      paddingRight: 8,
-                    }}
-                  >
-                    <Text size="sm">
-                      8 professional tables with tournament-grade flooring.
-                      Weekly round-robin matches and championships.
-                    </Text>
-                  </Box>
-                </Paper>
-
-                {/* 7. Football Club */}
-                <Paper
-                  withBorder
-                  p="lg"
-                  shadow="sm"
-                  style={{
-                    height: 200,
-                    display: "flex",
-                    flexDirection: "column",
-                  }}
-                >
-                  <Group position="apart" align="flex-start">
-                    <Box style={{ width: 30, height: 30 }}>
-                      <img
-                        src="https://img.icons8.com/color/96/soccer.png"
-                        alt="Football Logo"
-                        style={{
-                          width: "100%",
-                          height: "100%",
-                          objectFit: "contain",
-                        }}
-                      />
-                    </Box>
-                    <Box>
-                      <Text size="xl" fw={700}>
-                        Football
-                      </Text>
-                    </Box>
-                  </Group>
-                  <Box
-                    style={{
-                      flex: 1,
-                      overflowY: "auto",
-                      marginTop: 16,
-                      paddingRight: 8,
-                    }}
-                  >
-                    <Text size="sm">
-                      FIFA-standard turf with floodlights. 7-a-side league and
-                      annual "Golden Boot" tournament. Women's team available.
-                    </Text>
-                  </Box>
-                </Paper>
-
-                {/* 8. Volleyball Club */}
-                <Paper
-                  withBorder
-                  p="lg"
-                  shadow="sm"
-                  style={{
-                    height: 200,
-                    display: "flex",
-                    flexDirection: "column",
-                  }}
-                >
-                  <Group position="apart" align="flex-start">
-                    <Box style={{ width: 30, height: 30 }}>
-                      <img
-                        src="https://img.icons8.com/color/96/volleyball.png"
-                        alt="Volleyball Logo"
-                        style={{
-                          width: "100%",
-                          height: "100%",
-                          objectFit: "contain",
-                        }}
-                      />
-                    </Box>
-                    <Box>
-                      <Text size="xl" fw={700}>
-                        Volleyball
-                      </Text>
-                    </Box>
-                  </Group>
-                  <Box
-                    style={{
-                      flex: 1,
-                      overflowY: "auto",
-                      marginTop: 16,
-                      paddingRight: 8,
-                    }}
-                  >
-                    <Text size="sm">
-                      4 professional courts (2 indoor). Beach volleyball
-                      training. Reigning state university champions.
-                    </Text>
-                  </Box>
-                </Paper>
-
-                {/* 9. Kabaddi Club */}
-                <Paper
-                  withBorder
-                  p="lg"
-                  shadow="sm"
-                  style={{
-                    height: 200,
-                    display: "flex",
-                    flexDirection: "column",
-                  }}
-                >
-                  <Group position="apart" align="flex-start">
-                    <Box style={{ width: 30, height: 30 }}>
-                      <img
-                        src="https://img.icons8.com/color/96/kabaddi.png"
-                        alt="Kabaddi Logo"
-                        style={{
-                          width: "100%",
-                          height: "100%",
-                          objectFit: "contain",
-                        }}
-                      />
-                    </Box>
-                    <Box>
-                      <Text size="xl" fw={700}>
-                        Kabaddi
-                      </Text>
-                    </Box>
-                  </Group>
-                  <Box
-                    style={{
-                      flex: 1,
-                      overflowY: "auto",
-                      marginTop: 16,
-                      paddingRight: 8,
-                    }}
-                  >
-                    <Text size="sm">
-                      National-level players. Professional mat arena. Compete in
-                      Pro Kabaddi League scouting tournaments.
-                    </Text>
-                  </Box>
-                </Paper>
-              </SimpleGrid>
+              <ClubDirectory
+                activeRole={userRole}
+                onSelectClub={(id) => setValue(id)}
+                onApplyMembership={(id) => {
+                  import('@mantine/notifications').then(({ notifications }) => {
+                    notifications.show({ title: "Applied", message: "Application sent for " + id, color: "green" });
+                  });
+                }}
+              />
+            </Paper>
+          ) : isClubError ? (
+            <Paper shadow="md" p="xl" style={{ maxWidth: "800px", margin: "20px auto", textAlign: "center" }}>
+              <Alert title="Club Not Found" color="red" variant="filled" mb="md">
+                The club "{value}" does not exist in the database. This error was caught and handled gracefully by the frontend.
+              </Alert>
+              <Text size="sm" color="dimmed" mb="md">
+                Backend returned: 404 — {"{"}"error": "Club not found"{"}"}
+              </Text>
+              <Button color="blue" onClick={() => { setValue("Select a Club"); setSearchInput(""); }}>
+                ← Back to Club Directory
+              </Button>
             </Paper>
           ) : (
             <Suspense fallback={<div>Loading .......</div>}>
@@ -1144,7 +223,7 @@ function GymkhanaDashboard() {
                         return true;
                       return false;
                     })
-                    .sort((a, b) => a.end_date < b.end_date)}
+                    .sort((a, b) => new Date(a.date) < new Date(b.date))}
                   membersColumns={[
                     {
                       accessorKey: "club", // Key in your data object
@@ -1166,16 +245,10 @@ function GymkhanaDashboard() {
                     { accessorKey: "incharge", header: "Incharge" },
                     { accessorKey: "venue", header: "Venue" },
                     {
-                      accessorKey: "start_date",
-                      header: "Start Date",
+                      accessorKey: "date",
+                      header: "Date",
                       render: (data) =>
-                        new Date(data.start_date).toLocaleDateString(), // optional formatting
-                    },
-                    {
-                      accessorKey: "end_date",
-                      header: "End Date",
-                      render: (data) =>
-                        new Date(data.end_date).toLocaleDateString(), // optional formatting
+                        new Date(data.date).toLocaleDateString(), // optional formatting
                     },
                     {
                       accessorKey: "start_time",
@@ -1221,7 +294,7 @@ function GymkhanaDashboard() {
                 <EventCard
                   events={[...pastEvents, ...upcomingEvents]
                     .filter((event) =>
-                      dayjs(event.start_date).isSame(selectedDate, "day"),
+                      dayjs(event.date).isSame(selectedDate, "day"),
                     )
                     .filter((event) => {
                       if (event.status === "ACCEPT") return true;
@@ -1333,20 +406,15 @@ function GymkhanaDashboard() {
                     data={upcomingEvents}
                     columns={[
                       { accessorKey: "club", header: "Club" },
+                      { accessorKey: "status", header: "Status" },
                       { accessorKey: "event_name", header: "Event Name" },
                       { accessorKey: "incharge", header: "Incharge" },
                       { accessorKey: "venue", header: "Venue" },
                       {
-                        accessorKey: "start_date",
-                        header: "Start Date",
+                        accessorKey: "date",
+                        header: "Date",
                         render: (data) =>
-                          new Date(data.start_date).toLocaleDateString(),
-                      },
-                      {
-                        accessorKey: "end_date",
-                        header: "End Date",
-                        render: (data) =>
-                          new Date(data.end_date).toLocaleDateString(),
+                          new Date(data.date).toLocaleDateString(),
                       },
                       {
                         accessorKey: "start_time",
@@ -1372,20 +440,15 @@ function GymkhanaDashboard() {
                     data={pastEvents}
                     columns={[
                       { accessorKey: "club", header: "Club" },
+                      { accessorKey: "status", header: "Status" },
                       { accessorKey: "event_name", header: "Event Name" },
                       { accessorKey: "incharge", header: "Incharge" },
                       { accessorKey: "venue", header: "Venue" },
                       {
-                        accessorKey: "start_date",
-                        header: "Start Date",
+                        accessorKey: "date",
+                        header: "Date",
                         render: (data) =>
-                          new Date(data.start_date).toLocaleDateString(),
-                      },
-                      {
-                        accessorKey: "end_date",
-                        header: "End Date",
-                        render: (data) =>
-                          new Date(data.end_date).toLocaleDateString(),
+                          new Date(data.date).toLocaleDateString(),
                       },
                       {
                         accessorKey: "start_time",
@@ -1400,6 +463,39 @@ function GymkhanaDashboard() {
               )}
             </Suspense>
           </Box>
+          {/* Role-based Event Actions */}
+          <EventActionsPanel
+            userRole={userRole}
+            events={upcomingEvents || []}
+            token={token}
+            onRefresh={refetchUpcoming}
+          />
+        </Box>
+      )}
+      {tabs[Number(activeTab)]?.title === "My Club Admin" && (
+        <Box mt="10px" mx={{ base: "xs", sm: "xl" }}>
+          <CoordinatorMembersWithProviders clubName={value !== "Select a Club" ? value : "BitByte"} />
+        </Box>
+      )}
+      {tabs[Number(activeTab)]?.title === "Administration" && (
+        <Box mt="10px" mx={{ base: "xs", sm: "xl" }}>
+          <LeadershipManager activeRole={userRole} />
+          <NewClubProposal activeRole={userRole} />
+        </Box>
+      )}
+      {tabs[Number(activeTab)]?.title === "Finance" && (
+        <Box mt="10px" mx={{ base: "xs", sm: "xl" }}>
+          <BudgetApprovals clubName={value !== "Select a Club" ? value : "BitByte"} />
+        </Box>
+      )}
+      {tabs[Number(activeTab)]?.title === "Inventory" && (
+        <Box mt="10px" mx={{ base: "xs", sm: "xl" }}>
+          <InventoryManager activeRole={userRole} />
+        </Box>
+      )}
+      {tabs[Number(activeTab)]?.title === "Reports & Audit" && (
+        <Box mt="10px" mx={{ base: "xs", sm: "xl" }}>
+          <ReportsAndAudit activeRole={userRole} />
         </Box>
       )}
     </>
